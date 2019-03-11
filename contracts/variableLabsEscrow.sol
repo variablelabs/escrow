@@ -61,14 +61,15 @@ contract variableLabsEscrow{
 
 	/**
     @dev Escrow structure 
-    Stores the funds in xTokens, addresses of the depositer, receiver, resolver fees and state.
+    Stores the funds in Tokens, addresses of the depositer, receiver, resolver fees and state.
 	States:
 	0 - Active
 	1 - Approved
 	2 - Cancelled
-	3 - Disputed
-	4 - Resolved: In favor of depositer
-	5 - Resolved: In favor of receiver
+	3 - Disputed: By depositer
+	4 - Disputed: By receiver
+	5 - Resolved: In favor of depositer
+	6 - Resolved: In favor of receiver
     */
 	struct Escrow{
 		uint256 funds;
@@ -92,7 +93,8 @@ contract variableLabsEscrow{
 	}
 	
 	function createEscrow(bytes32 _id, uint256 _funds, address _receiver, uint8 _fee) public returns(bool success){
-		require(_receiver != address(this), "this contract can't receive funds");
+		require(_id != '', "id cannot be null");
+		require((_fee >= 0) && (_fee <= 10000), "fee must be a percentage");
 
 		Escrow memory currentEscrow;
 		currentEscrow.funds = _funds;
@@ -100,7 +102,7 @@ contract variableLabsEscrow{
 		currentEscrow.receiver = _receiver;
 		currentEscrow.fee = _fee;
 
-		// Sender must approve this contract to spend token
+		// Sender must approve this contract to spend Token
 		Token(tokenAddress).transferFrom(msg.sender, address(this), _funds);
 
 		escrow[_id] = currentEscrow;
