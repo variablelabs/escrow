@@ -1,4 +1,4 @@
-pragma solidity ^0.5.0;
+pragma solidity 0.5.0;
 
 /**
 @dev Contract for 'Escrow'
@@ -81,25 +81,25 @@ contract variableLabsEscrow{
     address payable public owner;
     uint public creationTime;
 
-	address payable public resolver;
 	address public tokenAddress;
 
 	/**
     @dev Escrow structure 
     Stores the funds in Tokens, addresses of the depositer, receiver, resolver fees and state.
 	States:
-	0x00 - Active
-	0x01 - Approved
-	0x02 - Cancelled
-	0x03 - Disputed: By depositer
-	0x04 - Disputed: By receiver
-	0x05 - Resolved: In favor of depositer
-	0x06 - Resolved: In favor of receiver
+	0 - Active
+	1 - Approved
+	2 - Cancelled
+	3 - Disputed: By depositer
+	4 - Disputed: By receiver
+	5 - Resolved: In favor of depositer
+	6 - Resolved: In favor of receiver
     */
 	struct Escrow{
 		uint256 funds;
 		address depositer;
 		address receiver;
+		address resolver;
 		uint8 fee;
 		uint8 state;
 	}
@@ -113,11 +113,10 @@ contract variableLabsEscrow{
 	constructor(address _tokenAddress) public {
 		owner = msg.sender;
 		creationTime = now;
-		resolver = msg.sender;
 		tokenAddress = _tokenAddress;
 	}
 	
-	function createEscrow(bytes32 _id, uint256 _funds, address _receiver, uint8 _fee) public returns(bool success){		
+	function createEscrow(bytes32 _id, uint256 _funds, address _receiver, address _resolver, uint8 _fee) public returns(bool success){		
 		require(_id != '', "id cannot be null");
 		require((_fee >= 0) && (_fee <= 10000), "fee must be a percentage");
 
@@ -125,8 +124,9 @@ contract variableLabsEscrow{
 		currentEscrow.funds = _funds;
 		currentEscrow.depositer = msg.sender;
 		currentEscrow.receiver = _receiver;
+		currentEscrow.resolver = _resolver;
 		currentEscrow.fee = _fee;
-		currentEscrow.state = 0x00;
+		currentEscrow.state = uint8(0);
 
 		// Sender must approve this contract to spend Token
 		Token(tokenAddress).transferFrom(msg.sender, address(this), _funds);
@@ -138,71 +138,74 @@ contract variableLabsEscrow{
 
 	function approveEscrow(bytes32 _id) public returns(bool success){
 		require(escrow[_id].depositer == msg.sender, "only by depositer");
-		require(escrow[_id].state == 0x00, "escrow must be active");
+		require(escrow[_id].state == uint8(0), "escrow must be active");
 
 		Token(tokenAddress).transfer(escrow[_id].receiver, escrow[_id].funds);
 
 		uint256 _feeAmount = escrow[_id].funds.mul(uint256(escrow[_id].fee));
 		_feeAmount = _feeAmount.div(uint256(10000));
-		Token(tokenAddress).transfer(resolver, _feeAmount);
+		Token(tokenAddress).transfer(escrow[_id].resolver, _feeAmount);
 
-		escrow[_id].state = 0x01;
+		escrow[_id].state = uint8(1);
 
 		return true;
 	}
 
 	function cancelEscrow(bytes32 _id) public returns(bool success){
 		require(escrow[_id].receiver == msg.sender, "only by receiver");
-		require(escrow[_id].state == 0x00, "escrow must be active");
+		require(escrow[_id].state == uint8(0), "escrow must be active");
 
 		Token(tokenAddress).transfer(escrow[_id].depositer, escrow[_id].funds);
 
 		uint256 _feeAmount = escrow[_id].funds.mul(uint256(escrow[_id].fee));
 		_feeAmount = _feeAmount.div(uint256(10000));
-		Token(tokenAddress).transfer(resolver, _feeAmount);
+		Token(tokenAddress).transfer(escrow[_id].resolver, _feeAmount);
 
-		escrow[_id].state = 0x02;
+		escrow[_id].state = uint8(2);
 
 		return true;
 	}
 
 	function raiseDispute(bytes32 _id) public returns(bool success){
 		require((escrow[_id].depositer == msg.sender) || (escrow[_id].receiver == msg.sender), "only by depositer or receiver");
-		require(escrow[_id].state == 0x00, "escrow must be active");
+		require(escrow[_id].state == uint8(0), "escrow must be active");
 
 		if(msg.sender == escrow[_id].depositer){
-			escrow[_id].state = 0x03;
+			escrow[_id].state = uint8(3);
 		}
 		if(msg.sender == escrow[_id].receiver){
-			escrow[_id].state = 0x04;
+			escrow[_id].state = uint8(4);
 		}
 
 		return true;
 	}
 
-	function resolveDispute(bytes32 _id, uint8 _decision) public onlyBy(resolver) returns (bool success){
-		require((escrow[_id].state == 0x03) || (escrow[_id].state == 0x03), "escrow should be disputed");
-		require((_decision == 0x00) || (_decision == 0x01), "decision has to be in favor of depositer or receiver");
+	function resolveDispute(bytes32 _id, uint8 _decision) public returns (bool success){
+		require((escrow[_id].state == uint8(3)) || (escrow[_id].state == uint8(3)), "escrow should be disputed");
+		require((_decision == uint8(0)) || (_decision == uint8(1)), "decision has to be in favor of depositer or receiver");
 
 		uint256 _feeAmount = escrow[_id].funds.mul(uint256(escrow[_id].fee));
 		_feeAmount = _feeAmount.div(uint256(10000));
-		Token(tokenAddress).transfer(resolver, _feeAmount);
+		Token(tokenAddress).transfer(escrow[_id].resolver, _feeAmount);
 
 		// Funds go to depositer
-		if(_decision == 0x00){
+		if(_decision == uint8(0)){
 			Token(tokenAddress).transfer(escrow[_id].depositer, escrow[_id].funds);
 
-			escrow[_id].state = 0x05;
+			escrow[_id].state = uint8(5);
 			return true;
 		}
 		// Funds go to receiver
-		if(_decision == 0x01){
+		if(_decision == uint8(1)){
 			Token(tokenAddress).transfer(escrow[_id].receiver, escrow[_id].funds);
 
-			escrow[_id].state = 0x06;
+			escrow[_id].state = uint8(6);
 			return true;
 		}
 
+	}
+	function killContract() public onlyBy(owner){
+		selfdestruct(owner);
 	}
 
 }

@@ -10,9 +10,6 @@ contract('escrow', accounts => {
             return escrowInstance.owner();
         }).then((owner) => {
             assert.equal(owner, accounts[0], 'has correct owner');
-            return escrowInstance.resolver();
-        }).then((resolver) => {
-            assert.equal(resolver, accounts[0], 'has correct resolver');
             return escrowInstance.tokenAddress();
         }).then((tokenAddress) => {
             assert.equal(tokenAddress, '0x16EB958722991e3685bD113eD958F9872a4533e7', 'has correct token address')
