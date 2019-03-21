@@ -70,7 +70,7 @@ contract variableLabsEscrow{
     The function is executed only if the sender address is the same as _address
     */
     modifier onlyBy(address _address) {
-		require(msg.sender == _address, 'forbidden request');
+		require(msg.sender == _address, "forbidden request");
 		_;
     }
 
@@ -102,6 +102,7 @@ contract variableLabsEscrow{
 		address resolver;
 		uint8 fee;
 		uint8 state;
+		bool exists;
 	}
 
 	event Creation(
@@ -117,8 +118,9 @@ contract variableLabsEscrow{
 	}
 	
 	function createEscrow(bytes32 _id, uint256 _funds, address _receiver, address _resolver, uint8 _fee) public returns(bool success){		
-		require(_id != '', "id cannot be null");
 		require((_fee >= 0) && (_fee <= 10000), "fee must be a percentage");
+		if(escrow[_id].exists) 
+			revert("escrow exists");
 
 		Escrow memory currentEscrow;
 		currentEscrow.funds = _funds;
@@ -127,6 +129,7 @@ contract variableLabsEscrow{
 		currentEscrow.resolver = _resolver;
 		currentEscrow.fee = _fee;
 		currentEscrow.state = uint8(0);
+		currentEscrow.exists = true;
 
 		// Sender must approve this contract to spend Token
 		Token(tokenAddress).transferFrom(msg.sender, address(this), _funds);
@@ -137,6 +140,8 @@ contract variableLabsEscrow{
 	}
 
 	function approveEscrow(bytes32 _id) public returns(bool success){
+		if(!escrow[_id].exists) 
+			revert("escrow does not exist");
 		require(escrow[_id].depositer == msg.sender, "only by depositer");
 		require(escrow[_id].state == uint8(0), "escrow must be active");
 
@@ -152,8 +157,11 @@ contract variableLabsEscrow{
 	}
 
 	function cancelEscrow(bytes32 _id) public returns(bool success){
+		if(!escrow[_id].exists) 
+			revert("escrow does not exist");
 		require(escrow[_id].receiver == msg.sender, "only by receiver");
 		require(escrow[_id].state == uint8(0), "escrow must be active");
+		
 
 		Token(tokenAddress).transfer(escrow[_id].depositer, escrow[_id].funds);
 
@@ -167,6 +175,8 @@ contract variableLabsEscrow{
 	}
 
 	function raiseDispute(bytes32 _id) public returns(bool success){
+		if(!escrow[_id].exists) 
+			revert("escrow does not exist");
 		require((escrow[_id].depositer == msg.sender) || (escrow[_id].receiver == msg.sender), "only by depositer or receiver");
 		require(escrow[_id].state == uint8(0), "escrow must be active");
 
@@ -181,7 +191,9 @@ contract variableLabsEscrow{
 	}
 
 	function resolveDispute(bytes32 _id, uint8 _decision) public returns (bool success){
-		require((escrow[_id].state == uint8(3)) || (escrow[_id].state == uint8(3)), "escrow should be disputed");
+		if(!escrow[_id].exists) 
+			revert("escrow does not exist");
+		require((escrow[_id].state == uint8(3)) || (escrow[_id].state == uint8(4)), "escrow should be disputed");
 		require((_decision == uint8(0)) || (_decision == uint8(1)), "decision has to be in favor of depositer or receiver");
 
 		uint256 _feeAmount = escrow[_id].funds.mul(uint256(escrow[_id].fee));
