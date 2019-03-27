@@ -1,8 +1,8 @@
 pragma solidity 0.5.0;
 
 /**
-@dev Contract for 'Escrow'
-Used as an escrow service.
+@dev Contract for escrowing xToken
+Used as an escrow service. Configirable to any ERC-20 token.
 @author https://github.com/parthvshah
 */
 
@@ -54,10 +54,12 @@ library SafeMath {
 		return c;
     }
 }
-
+/**
+@dev Token contract
+Used to transfer, transferFrom ERC-20 tokens
+*/
 contract Token{
 	function transfer(address _to, uint256 _value) public returns(bool success);
-	function approve(address _spender, uint256 _value) public returns(bool success);
 	function transferFrom(address _from, address _to, uint256 _value) public returns(bool success);
 }
 
@@ -81,6 +83,9 @@ contract variableLabsEscrow{
     address payable public owner;
     uint public creationTime;
 
+	/**
+    @dev Address to an ERC-20 token for transfer, transferToken functionality
+    */
 	address public tokenAddress;
 
 	/**
@@ -105,18 +110,36 @@ contract variableLabsEscrow{
 		bool exists;
 	}
 
+	/**
+    @dev Event to log the creation of an escrow
+	Logs the unique ID that is used to identify an escrow. Can be queried to obtain additional escrow details.
+    */
 	event Creation(
 		bytes32 indexed _id
 	);
 
+	/**
+    @dev Maps a unique ID to an escrow with additional details.
+    */
 	mapping (bytes32 => Escrow) public escrow;
 
+	/**
+    @dev Constructor for the contract.
+	@param _tokenAddress 
+	Sets up the owner, creation time and token address of the ERC-20 token.
+    */
 	constructor(address _tokenAddress) public {
 		owner = msg.sender;
 		creationTime = now;
 		tokenAddress = _tokenAddress;
 	}
 	
+	/**
+    @dev Create an escrow.
+	@param _id @param _funds @param _receiver @param _resolver @param _fee 
+	Creates an escrow using the unique ID. Sets the funds, receiver, resolver and a fee in percentage. Sets the state of the escrow.
+	It transfers the funds, creates an escrow and emits an event.
+    */
 	function createEscrow(bytes32 _id, uint256 _funds, address _receiver, address _resolver, uint8 _fee) public returns(bool success){		
 		require((_fee >= 0) && (_fee <= 10000), "fee must be a percentage");
 		if(escrow[_id].exists) 
@@ -131,7 +154,7 @@ contract variableLabsEscrow{
 		currentEscrow.state = uint8(0);
 		currentEscrow.exists = true;
 
-		// Sender must approve this contract to spend Token
+		// Sender must approve this contract to spend the said amount of funds before it can be transfered.
 		Token(tokenAddress).transferFrom(msg.sender, address(this), _funds);
 
 		escrow[_id] = currentEscrow;
@@ -139,6 +162,11 @@ contract variableLabsEscrow{
 		return true;
 	}
 
+	/**
+    @dev Depositer approves an escrow.
+	@param _id 
+	Transfers funds to the receiver in the escrow, transfers the fee to the resolver and changes the state of the escrow.
+    */
 	function approveEscrow(bytes32 _id) public returns(bool success){
 		if(!escrow[_id].exists) 
 			revert("escrow does not exist");
@@ -156,6 +184,11 @@ contract variableLabsEscrow{
 		return true;
 	}
 
+	/**
+    @dev Reciever cancels an escrow.
+	@param _id 
+	Transfers funds to the depositer in the escrow, transfers the fee to the resolver and changes the state of the escrow.
+    */
 	function cancelEscrow(bytes32 _id) public returns(bool success){
 		if(!escrow[_id].exists) 
 			revert("escrow does not exist");
@@ -174,6 +207,11 @@ contract variableLabsEscrow{
 		return true;
 	}
 
+	/**
+    @dev Depositer or receiver raises a dispute.
+	@param _id 
+	Transfers funds to the receiver in the escrow, transfers the fee to the resolver and changes the state of the escrow.
+    */
 	function raiseDispute(bytes32 _id) public returns(bool success){
 		if(!escrow[_id].exists) 
 			revert("escrow does not exist");
@@ -190,6 +228,11 @@ contract variableLabsEscrow{
 		return true;
 	}
 
+	/**
+    @dev Depositer or receiver raises a dispute.
+	@param _id @param _decision
+	Resolver resolves a disputed contract in either direction. Funds and fees are transferred.
+    */
 	function resolveDispute(bytes32 _id, uint8 _decision) public returns (bool success){
 		if(!escrow[_id].exists) 
 			revert("escrow does not exist");
@@ -216,6 +259,11 @@ contract variableLabsEscrow{
 		}
 
 	}
+
+	/**
+    @dev Destroys a contract
+	Temporary functionality.
+    */
 	function killContract() public onlyBy(owner){
 		selfdestruct(owner);
 	}
