@@ -1,4 +1,4 @@
-pragma solidity 0.5.0;
+pragma solidity 0.5.7;
 
 /**
 @dev Contract for escrowing xToken
@@ -155,7 +155,9 @@ contract variableLabsEscrow{
 		currentEscrow.exists = true;
 
 		// Sender must approve this contract to spend the said amount of funds before it can be transfered.
-		Token(tokenAddress).transferFrom(msg.sender, address(this), _funds);
+		uint256 _feeAmount = escrow[_id].funds.mul(uint256(escrow[_id].fee));
+		_feeAmount = _feeAmount.div(uint256(10000));
+		Token(tokenAddress).transferFrom(msg.sender, address(this), (_funds+_feeAmount));
 
 		escrow[_id] = currentEscrow;
 		emit Creation(_id);
@@ -229,7 +231,7 @@ contract variableLabsEscrow{
 	}
 
 	/**
-    @dev Depositer or receiver raises a dispute.
+    @dev Resolver resolves a dispute. 
 	@param _id @param _decision
 	Resolver resolves a disputed contract in either direction. Funds and fees are transferred.
     */
