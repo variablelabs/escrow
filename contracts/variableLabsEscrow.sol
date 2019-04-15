@@ -105,7 +105,7 @@ contract variableLabsEscrow{
 		address depositer;
 		address receiver;
 		address resolver;
-		uint8 fee;
+		uint256 fee;
 		uint8 state;
 		bool exists;
 	}
@@ -140,7 +140,7 @@ contract variableLabsEscrow{
 	Creates an escrow using the unique ID. Sets the funds, receiver, resolver and a fee in percentage. Sets the state of the escrow.
 	It transfers the funds, creates an escrow and emits an event.
     */
-	function createEscrow(bytes32 _id, uint256 _funds, address _receiver, address _resolver, uint8 _fee) public returns(bool success){		
+	function createEscrow(bytes32 _id, uint256 _funds, address _receiver, address _resolver, uint256 _fee) public returns(bool success){		
 		require((_fee >= 0) && (_fee <= 10000), "fee must be a percentage");
 		if(escrow[_id].exists) 
 			revert("escrow exists");
