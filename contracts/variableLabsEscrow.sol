@@ -150,14 +150,17 @@ contract variableLabsEscrow{
 		currentEscrow.depositer = msg.sender;
 		currentEscrow.receiver = _receiver;
 		currentEscrow.resolver = _resolver;
-		currentEscrow.fee = _fee;
+
+		// Sender must approve this contract to spend the said amount of funds+fees before it can be transfered.
+		uint256 _feeAmount = _funds.mul(_fee);
+		_feeAmount = _feeAmount.div(10000);
+
+		currentEscrow.fee = _feeAmount;
 		currentEscrow.state = 0;
 		currentEscrow.exists = true;
 
-		// Sender must approve this contract to spend the said amount of funds before it can be transfered.
-		uint256 _feeAmount = escrow[_id].funds.mul(escrow[_id].fee);
-		_feeAmount = _feeAmount.div(10000);
-		Token(tokenAddress).transferFrom(msg.sender, address(this), (_funds+_feeAmount));
+		uint256 _total = _funds.add(_feeAmount);
+		Token(tokenAddress).transferFrom(msg.sender, address(this), _total);
 
 		escrow[_id] = currentEscrow;
 		emit Creation(_id);
@@ -176,10 +179,7 @@ contract variableLabsEscrow{
 		require(escrow[_id].state == 0, "escrow must be active");
 
 		Token(tokenAddress).transfer(escrow[_id].receiver, escrow[_id].funds);
-
-		uint256 _feeAmount = escrow[_id].funds.mul(escrow[_id].fee);
-		_feeAmount = _feeAmount.div(10000);
-		Token(tokenAddress).transfer(escrow[_id].resolver, _feeAmount);
+		Token(tokenAddress).transfer(escrow[_id].resolver, escrow[_id].fee);
 
 		escrow[_id].state = 1;
 
@@ -199,10 +199,7 @@ contract variableLabsEscrow{
 		
 
 		Token(tokenAddress).transfer(escrow[_id].depositer, escrow[_id].funds);
-
-		uint256 _feeAmount = escrow[_id].funds.mul(escrow[_id].fee);
-		_feeAmount = _feeAmount.div(10000);
-		Token(tokenAddress).transfer(escrow[_id].resolver, _feeAmount);
+		Token(tokenAddress).transfer(escrow[_id].resolver, escrow[_id].fee);
 
 		escrow[_id].state = 2;
 
@@ -238,27 +235,28 @@ contract variableLabsEscrow{
 	function resolveDispute(bytes32 _id, uint256 _decision) public returns (bool success){
 		if(!escrow[_id].exists) 
 			revert("escrow does not exist");
+		require(escrow[_id].resolver == msg.sender, "only by resolver");
 		require((escrow[_id].state == 3) || (escrow[_id].state == 4), "escrow should be disputed");
 		require((_decision == 0) || (_decision == 1), "decision has to be in favor of depositer or receiver");
 
-		uint256 _feeAmount = escrow[_id].funds.mul(escrow[_id].fee);
-		_feeAmount = _feeAmount.div(10000);
-		Token(tokenAddress).transfer(escrow[_id].resolver, _feeAmount);
+		Token(tokenAddress).transfer(escrow[_id].resolver, escrow[_id].fee);
 
 		// Funds go to depositer
 		if(_decision == 0){
 			Token(tokenAddress).transfer(escrow[_id].depositer, escrow[_id].funds);
 
 			escrow[_id].state = 5;
-			return true;
 		}
 		// Funds go to receiver
 		if(_decision == 1){
 			Token(tokenAddress).transfer(escrow[_id].receiver, escrow[_id].funds);
 
 			escrow[_id].state = 6;
-			return true;
 		}
+		else{
+			return false;
+		}
+		return true;
 
 	}
 
