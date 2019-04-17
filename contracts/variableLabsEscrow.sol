@@ -142,8 +142,7 @@ contract variableLabsEscrow{
     */
 	function createEscrow(bytes32 _id, uint256 _funds, address _receiver, address _resolver, uint256 _fee) public returns(bool success){		
 		require((_fee >= 0) && (_fee <= 10000), "fee must be a percentage");
-		if(escrow[_id].exists) 
-			revert("escrow exists");
+		require(escrow[_id].exists == false, "escrow must not exist");
 
 		Escrow memory currentEscrow;
 		currentEscrow.funds = _funds;
@@ -173,8 +172,7 @@ contract variableLabsEscrow{
 	Transfers funds to the receiver in the escrow, transfers the fee to the resolver and changes the state of the escrow.
     */
 	function approveEscrow(bytes32 _id) public returns(bool success){
-		if(!escrow[_id].exists) 
-			revert("escrow does not exist");
+		require(escrow[_id].exists == true, "escrow must exist");
 		require(escrow[_id].depositer == msg.sender, "only by depositer");
 		require(escrow[_id].state == 0, "escrow must be active");
 
@@ -192,8 +190,7 @@ contract variableLabsEscrow{
 	Transfers funds to the depositer in the escrow, transfers the fee to the resolver and changes the state of the escrow.
     */
 	function cancelEscrow(bytes32 _id) public returns(bool success){
-		if(!escrow[_id].exists) 
-			revert("escrow does not exist");
+		require(escrow[_id].exists == true, "escrow must exist");
 		require(escrow[_id].receiver == msg.sender, "only by receiver");
 		require(escrow[_id].state == 0, "escrow must be active");
 		
@@ -212,8 +209,7 @@ contract variableLabsEscrow{
 	Transfers funds to the receiver in the escrow, transfers the fee to the resolver and changes the state of the escrow.
     */
 	function raiseDispute(bytes32 _id) public returns(bool success){
-		if(!escrow[_id].exists) 
-			revert("escrow does not exist");
+		require(escrow[_id].exists == true, "escrow must exist");
 		require((escrow[_id].depositer == msg.sender) || (escrow[_id].receiver == msg.sender), "only by depositer or receiver");
 		require(escrow[_id].state == 0, "escrow must be active");
 
@@ -233,8 +229,7 @@ contract variableLabsEscrow{
 	Resolver resolves a disputed contract in either direction. Funds and fees are transferred.
     */
 	function resolveDispute(bytes32 _id, uint256 _decision) public returns (bool success){
-		if(!escrow[_id].exists) 
-			revert("escrow does not exist");
+		require(escrow[_id].exists == true, "escrow must exist");
 		require(escrow[_id].resolver == msg.sender, "only by resolver");
 		require((escrow[_id].state == 3) || (escrow[_id].state == 4), "escrow should be disputed");
 		require((_decision == 0) || (_decision == 1), "decision has to be in favor of depositer or receiver");
